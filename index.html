@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClickCash - Earn via Surveys</title>
+<style>
+body {font-family: Arial, sans-serif; background:#f1f5f9; margin:0; padding:0;}
+.container {max-width:700px;margin:20px auto;padding:10px;}
+.card {background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);padding:20px;margin-bottom:20px;}
+button {padding:10px 15px;border:none;border-radius:5px;background:#3b82f6;color:#fff;cursor:pointer;}
+button:hover{background:#2563eb;}
+.hidden{display:none;}
+h3{margin-top:0;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="card" id="auth">
+  <h3>Login / Register</h3>
+  <input type="text" id="username" placeholder="Enter Username or Phone" style="width:100%;padding:8px;margin-bottom:10px;">
+  <input type="text" id="phone" placeholder="Airtel Money Phone" style="width:100%;padding:8px;margin-bottom:10px;">
+  <div>
+    <input type="checkbox" id="agree"> I agree to the terms & policies
+  </div>
+  <button onclick="sendOTP()">Send SMS Code</button>
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="activationCard" class="card hidden">
+  <h3>Activate Account</h3>
+  <p style="font-size:13px;color:#475569">Pay KSh 100 to unlock surveys.</p>
+  <button onclick="activateAccount()">Pay KSh 100 & Activate</button>
+  <p style="font-size:12px;color:#64748b">Activation is required to access CPX surveys.</p>
+</div>
+
+<div id="surveysCard" class="card hidden">
+  <h3>Available Surveys</h3>
+  <p style="font-size:13px;color:#475569">Powered by CPX Research. Rewards depend on qualification.</p>
+  <iframe id="cpxIframe" style="width:100%;height:520px;border:none;border-radius:8px;margin-top:12px" src=""></iframe>
+</div>
+
+<div class="card">
+  <h3>Wallet</h3>
+  <p style="font-size:13px;color:#475569">Payout: Airtel Money (registered number)</p>
+  <p><strong>Balance:</strong> KSh <span id="balance">0.00</span></p>
+  <p><strong>Minimum Withdrawal:</strong> KSh 500</p>
+  <button onclick="payWithdrawalFee()">Pay Withdrawal Fee (KSh 100)</button>
+  <button onclick="withdraw()" style="margin-left:8px">Request Withdrawal</button>
+  <hr />
+  <h4>Transaction History</h4>
+  <ul id="txHistory" style="font-size:13px;color:#475569"></ul>
+</div>
+
+<div class="card">
+  <h3>Frequently Asked Questions (FAQ)</h3>
+  <p><strong>How do I start earning?</strong><br>Register, verify your phone, and pay KSh 100 activation fee.</p>
+  <p><strong>Why pay an activation fee?</strong><br>Prevents fake accounts and keeps ClickCash compliant.</p>
+  <p><strong>Minimum withdrawal?</strong><br>KSh 500</p>
+  <p><strong>Withdrawal fee?</strong><br>KSh 100 must be paid first</p>
+  <p><strong>Payment method?</strong><br>Airtel Money (24–48 hrs)</p>
+</div>
+
+<div class="card">
+  <h3>Launch Checklist</h3>
+  <ul style="font-size:13px;color:#475569">
+    <li>✔ CPX App ID added (30837)</li>
+    <li>✔ Activation fee enabled (KSh 100)</li>
+    <li>✔ Withdrawal rules enforced</li>
+    <li>⬜ Host on real domain (GitHub Pages)</li>
+    <li>⬜ Add Airtel Money STK API</li>
+    <li>⬜ Add CPX postback URL</li>
+    <li>⬜ Test with 1–2 real users</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Developer Setup (Server-side)</h3>
+  <pre style="font-size:12px;background:#0f172a;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto">
+// cpx-postback.php
+<?php
+$user = $_GET['user_id'];
+$amount = $_GET['amount'];
+// validate CPX signature
+// credit user wallet in database
+?>
+
+// airtel-stk.php
+// 1. Receive phone + amount
+// 2. Call Airtel Money STK Push API
+// 3. Confirm payment
+// 4. Activate account or mark withdrawal fee paid
+  </pre>
+</div>
+
+</div> <!-- container -->
+
+<script>
+let user=null;
+let balance=0;
+let activated=false;
+let withdrawalFeePaid=false;
+
+function sendOTP(){ alert('SMS code sent (demo)'); }
+function login(){
+  if(!document.getElementById('agree').checked) return alert('Agree to terms');
+  if(!user) user=document.getElementById('username').value;
+  document.getElementById('auth').classList.add('hidden');
+  updateActivationUI();
+}
+
+function updateActivationUI(){
+  document.getElementById('activationCard').classList.toggle('hidden', activated);
+  document.getElementById('surveysCard').classList.toggle('hidden', !activated);
+  if(activated) loadCPX();
+}
+
+function activateAccount(){
+  alert('STK Push sent to pay KSh 100');
+  activated=true;
+  logTx('Activation Fee', -100);
+  alert('Payment confirmed. Account activated.');
+  updateActivationUI();
+}
+
+function payWithdrawalFee(){
+  alert('STK Push sent for withdrawal fee KSh 100');
+  withdrawalFeePaid=true;
+  logTx('Withdrawal Fee Paid', -100);
+  alert('Withdrawal fee paid. Now you can request withdrawal.');
+}
+
+function withdraw(){
+  const min=500;
+  if(!withdrawalFeePaid) return alert('Pay withdrawal fee first');
+  if(balance<min) return alert('Minimum withdrawal KSh 500');
+  logTx('Withdrawal Requested', -balance);
+  payoutLog.push({user:user,amount:balance,phone:document.getElementById('phone').value,date:new Date().toLocaleString(),status:'Pending'});
+  console.log('Airtel payout placeholder:', balance);
+  balance=0; withdrawalFeePaid=false;
+  document.getElementById('balance').innerText='0.00';
+  alert('Withdrawal submitted. KSh sent in 24–48 hours.');
+}
+
+function loadCPX(){
+  if(!user || !activated) return;
+  const appId='30837';
+  document.getElementById('cpxIframe').src=`https://offers.cpx-research.com/index.php?app_id=${appId}&ext_user_id=${user}`;
+}
+
+function logTx(label, amount){
+  const li=document.createElement('li');
+  li.textContent=`${new Date().toLocaleString()} - ${label}: KSh ${amount}`;
+  document.getElementById('txHistory').appendChild(li);
+}
+
+let payoutLog=[];
+</script>
+</body>
+  </html>
